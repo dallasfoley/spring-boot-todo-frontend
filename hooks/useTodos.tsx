@@ -16,6 +16,8 @@ export function useGetTodosByUserId(userId: number) {
   return useQuery({
     queryKey: todoKeys.list(userId),
     queryFn: () => todoApi.getTodosByUserId(userId),
+    // Add staleTime: 0 to ensure the data is always refetched when needed
+    staleTime: 0,
   });
 }
 
@@ -29,11 +31,20 @@ export function useGetTodoById(id: number) {
 
 export function useCreateTodo() {
   const queryClient = useQueryClient();
-
+  console.log("useCreateTodo");
   return useMutation({
     mutationFn: (todo: Partial<Todo>) => todoApi.createTodo(todo),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: todoKeys.lists() });
+      // Make sure to target the specific user's todo list
+      if (variables.userId) {
+        queryClient.invalidateQueries({
+          queryKey: todoKeys.list(variables.userId as number),
+        });
+      }
+      // Also invalidate all lists to be safe
+      queryClient.invalidateQueries({
+        queryKey: todoKeys.lists(),
+      });
     },
   });
 }
@@ -44,9 +55,23 @@ export function useUpdateTodo() {
     mutationFn: (todo: Partial<Todo>) => todoApi.updateTodo(todo),
     onSuccess: (data, variables) => {
       // Update the cache for this specific todo
-      queryClient.invalidateQueries({ queryKey: todoKeys.detail(data.id) });
-      // Also invalidate the list queries
-      queryClient.invalidateQueries({ queryKey: todoKeys.lists() });
+      if (data.id) {
+        queryClient.invalidateQueries({
+          queryKey: todoKeys.detail(data.id),
+        });
+      }
+
+      // Also invalidate the specific user's list
+      if (data.userId) {
+        queryClient.invalidateQueries({
+          queryKey: todoKeys.list(data.userId),
+        });
+      }
+
+      // Also invalidate all lists to be safe
+      queryClient.invalidateQueries({
+        queryKey: todoKeys.lists(),
+      });
     },
   });
 }
@@ -57,9 +82,14 @@ export function useDeleteTodo() {
     mutationFn: (id: number) => todoApi.deleteTodo(id),
     onSuccess: (_, id) => {
       // Remove the todo from the cache
-      queryClient.invalidateQueries({ queryKey: todoKeys.detail(id) });
-      // Also invalidate the list queries
-      queryClient.invalidateQueries({ queryKey: todoKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: todoKeys.detail(id),
+      });
+
+      // Also invalidate all list queries
+      queryClient.invalidateQueries({
+        queryKey: todoKeys.lists(),
+      });
     },
   });
 }

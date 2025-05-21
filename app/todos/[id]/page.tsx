@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default async function TodoPage(
   params: Promise<{ params: { id: string } }>
 ) {
-  const { id } = (await params).params;
+  const { id } = await (await params).params;
 
   return (
-    <Card>
+    <Card className="m-4 w-[330px]">
       <CardHeader>
-        <CardTitle></CardTitle>
+        <CardTitle>Edit Your Todo</CardTitle>
       </CardHeader>
       <CardContent>
         <EditTodoForm id={id} />

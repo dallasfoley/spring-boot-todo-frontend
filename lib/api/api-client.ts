@@ -11,10 +11,24 @@ async function handleResponse<T>(response: Response): Promise<T> {
     console.error("API Error:", response.status, errorData);
     throw new Error(errorData || `Error: ${response.status}`);
   }
-  if (response.status === 204) {
+
+  // If the response is empty or status is 204 No Content, return null
+  if (
+    response.status === 204 ||
+    response.headers.get("content-length") === "0"
+  ) {
     return null as T;
   }
-  return response.json();
+
+  // Only try to parse JSON if we have content
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    const text = await response.text();
+    // Check if there's actual content to parse
+    return text ? JSON.parse(text) : (null as T);
+  }
+
+  return null as T;
 }
 
 // User API functions
@@ -114,7 +128,7 @@ export const userApi = {
 // Todo API functions
 export const todoApi = {
   getTodosByUserId: async (userId: number): Promise<Todo[]> => {
-    const response = await fetch(`${API_BASE_URL}/todos/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/todos/user/${userId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -125,7 +139,7 @@ export const todoApi = {
   },
 
   getTodoById: async (id: number): Promise<Todo> => {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/todos/todo/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -160,13 +174,31 @@ export const todoApi = {
   },
 
   deleteTodo: async (id: number): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // Include cookies for auth
-    });
-    return handleResponse<void>(response);
+    console.log(`Deleting todo with id: ${id}`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies for auth
+      });
+
+      // We don't expect content from a DELETE operation
+      if (!response.ok) {
+        const errorText = await response
+          .text()
+          .catch(() => response.statusText);
+        throw new Error(
+          errorText || `Failed to delete todo. Status: ${response.status}`
+        );
+      }
+
+      console.log(`Successfully deleted todo ${id}`);
+      return;
+    } catch (error) {
+      console.error(`Error deleting todo ${id}:`, error);
+      throw error;
+    }
   },
 };

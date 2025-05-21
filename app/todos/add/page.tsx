@@ -13,35 +13,52 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useCreateTodo } from "@/hooks/useTodos";
+import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
-import { TodoSchema } from "@/schema/todo";
+import { TodoNoIdSchema, TodoSchema } from "@/schema/todo";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@radix-ui/react-popover";
+import { setDate } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { TimePickerDemo } from "@/components/time-picker-demo";
 
 export default function AddTodoPage() {
   const router = useRouter();
   const { currentUser } = useAppSelector((state) => state.user);
   const createTodoMutation = useCreateTodo();
   const form = useForm({
-    resolver: zodResolver(TodoSchema),
+    resolver: zodResolver(TodoNoIdSchema),
     defaultValues: {
-      id: 0,
-      userId: 0,
+      userid: 0,
       name: "",
-      datetime: new Date().toISOString(),
+      datetime: new Date(),
       completed: false,
     },
   });
 
-  const onSubmit = async (formData: { name: string; datetime: string }) => {
+  const onSubmit = async (formData: {
+    userid: number;
+    name: string;
+    datetime: Date;
+    completed: boolean;
+  }) => {
     try {
       const todoData = {
         ...formData,
+        userid: currentUser?.id,
         completed: false,
-        userId: currentUser?.id,
+        datetime: formData.datetime.toISOString(),
       };
+      console.log("todoData: ", todoData);
       await createTodoMutation.mutateAsync(todoData);
       toast.success("Todo created successfully!");
       router.push("/todos");
@@ -73,9 +90,51 @@ export default function AddTodoPage() {
             name="datetime"
             render={({ field }) => (
               <FormItem>
+                <FormLabel>Date</FormLabel>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal",
+                        !field && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <FormControl>
+                      <Calendar
+                        className="bg-white border-1 rounded-md shadow-sm"
+                        mode="single"
+                        selected={
+                          field.value ? new Date(field.value) : undefined
+                        }
+                        onSelect={field.onChange}
+                        initialFocus
+                      />
+                    </FormControl>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="datetime"
+            render={({ field }) => (
+              <FormItem>
                 <FormLabel>Time</FormLabel>
                 <FormControl>
-                  <Input placeholder="Datetime..." {...field} />
+                  <TimePickerDemo date={new Date()} setDate={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -6,5 +6,11 @@ export default function TodosLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthGuard>{children}</AuthGuard>;
+  return (
+    <AuthGuard>
+      <div className="min-h-screen w-full flex flex-col justify-center items-center">
+        {children}
+      </div>
+    </AuthGuard>
+  );
 }
